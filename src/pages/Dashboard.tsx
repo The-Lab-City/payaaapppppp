@@ -198,10 +198,12 @@ export default function Dashboard() {
                 <CreditCard className="w-4 h-4" />
                 Request Payment
               </Button>
-              <Button className="w-full justify-start gap-3" variant="secondary">
-                <User className="w-4 h-4" />
-                Update Profile
-              </Button>
+              <Link to="/profile">
+                <Button className="w-full justify-start gap-3" variant="secondary">
+                  <User className="w-4 h-4" />
+                  Update Profile
+                </Button>
+              </Link>
               <Button className="w-full justify-start gap-3" variant="secondary">
                 <TrendingUp className="w-4 h-4" />
                 View Analytics
