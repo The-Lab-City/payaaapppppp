@@ -1,5 +1,6 @@
 import { ArrowRight, CreditCard, Shield, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -34,29 +35,33 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            <Button variant="hero" size="xl">
-              Get Started Free
-              <ArrowRight className="ml-2" />
-            </Button>
-            <Button variant="glass" size="xl">
-              View Demo
-            </Button>
+            <Link to="/auth">
+              <Button variant="hero" size="xl">
+                Get Started Free
+                <ArrowRight className="ml-2" />
+              </Button>
+            </Link>
+            <Link to="/contact">
+              <Button variant="glass" size="xl">
+                View Demo
+              </Button>
+            </Link>
           </div>
 
           {/* Feature Pills */}
           <div className="flex flex-wrap justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-            <div className="flex items-center gap-2 px-4 py-2 glass rounded-full">
+            <Link to="/features/lightning-fast" className="flex items-center gap-2 px-4 py-2 glass rounded-full hover:border-primary/30 transition-colors">
               <Zap className="w-4 h-4 text-primary" />
               <span className="text-sm">Instant Transfers</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 glass rounded-full">
+            </Link>
+            <Link to="/features/security" className="flex items-center gap-2 px-4 py-2 glass rounded-full hover:border-primary/30 transition-colors">
               <Shield className="w-4 h-4 text-primary" />
               <span className="text-sm">Bank-Grade Security</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 glass rounded-full">
+            </Link>
+            <Link to="/features/payment-methods" className="flex items-center gap-2 px-4 py-2 glass rounded-full hover:border-primary/30 transition-colors">
               <CreditCard className="w-4 h-4 text-primary" />
               <span className="text-sm">All Cards Accepted</span>
-            </div>
+            </Link>
           </div>
         </div>
       </div>

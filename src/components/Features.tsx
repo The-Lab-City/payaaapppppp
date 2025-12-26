@@ -1,35 +1,42 @@
 import { CreditCard, Globe, Lock, Repeat, Shield, Zap } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const features = [
   {
     icon: Zap,
     title: "Lightning Fast",
     description: "Process payments in milliseconds with our optimized infrastructure.",
+    href: "/features/lightning-fast",
   },
   {
     icon: Shield,
     title: "Fraud Protection",
     description: "AI-powered fraud detection keeps your business safe 24/7.",
+    href: "/features/fraud-protection",
   },
   {
     icon: Globe,
     title: "Global Payments",
     description: "Accept 135+ currencies from customers in 190+ countries.",
+    href: "/features/global-payments",
   },
   {
     icon: CreditCard,
     title: "All Payment Methods",
     description: "Cards, wallets, bank transfers, and crypto—all in one platform.",
+    href: "/features/payment-methods",
   },
   {
     icon: Lock,
     title: "Bank-Grade Security",
     description: "PCI DSS Level 1 certified with end-to-end encryption.",
+    href: "/features/security",
   },
   {
     icon: Repeat,
     title: "Recurring Billing",
     description: "Automate subscriptions and invoicing with smart retry logic.",
+    href: "/features/recurring-billing",
   },
 ];
 
@@ -53,9 +60,10 @@ const Features = () => {
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <div
+            <Link
               key={feature.title}
-              className="group p-6 glass rounded-2xl hover:border-primary/30 transition-all duration-300 hover:shadow-glow"
+              to={feature.href}
+              className="group p-6 glass rounded-2xl hover:border-primary/30 transition-all duration-300 hover:shadow-glow cursor-pointer"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -63,7 +71,7 @@ const Features = () => {
               </div>
               <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.description}</p>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

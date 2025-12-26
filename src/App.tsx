@@ -9,6 +9,14 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import LightningFast from "./pages/features/LightningFast";
+import FraudProtection from "./pages/features/FraudProtection";
+import GlobalPayments from "./pages/features/GlobalPayments";
+import PaymentMethods from "./pages/features/PaymentMethods";
+import Security from "./pages/features/Security";
+import RecurringBilling from "./pages/features/RecurringBilling";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +34,14 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/features/lightning-fast" element={<LightningFast />} />
+            <Route path="/features/fraud-protection" element={<FraudProtection />} />
+            <Route path="/features/global-payments" element={<GlobalPayments />} />
+            <Route path="/features/payment-methods" element={<PaymentMethods />} />
+            <Route path="/features/security" element={<Security />} />
+            <Route path="/features/recurring-billing" element={<RecurringBilling />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

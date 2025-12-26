@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const CTA = () => {
   return (
@@ -18,13 +19,17 @@ const CTA = () => {
             Join thousands of businesses that trust PayFlow for their payment processing. Get started in minutes with no setup fees.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="hero" size="xl">
-              Start Free Trial
-              <ArrowRight className="ml-2" />
-            </Button>
-            <Button variant="glass" size="xl">
-              Talk to Sales
-            </Button>
+            <Link to="/auth">
+              <Button variant="hero" size="xl">
+                Start Free Trial
+                <ArrowRight className="ml-2" />
+              </Button>
+            </Link>
+            <Link to="/contact">
+              <Button variant="glass" size="xl">
+                Talk to Sales
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
