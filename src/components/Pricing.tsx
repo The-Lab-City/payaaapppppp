@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const plans = [
   {
@@ -14,6 +15,7 @@ const plans = [
       "Standard payouts (3-5 days)",
     ],
     cta: "Start Free",
+    href: "/auth",
     popular: false,
   },
   {
@@ -30,6 +32,7 @@ const plans = [
       "Team accounts",
     ],
     cta: "Get Started",
+    href: "/auth",
     popular: true,
   },
   {
@@ -47,6 +50,7 @@ const plans = [
       "Custom integrations",
     ],
     cta: "Contact Sales",
+    href: "/contact",
     popular: false,
   },
 ];
@@ -106,13 +110,15 @@ const Pricing = () => {
                 ))}
               </ul>
 
-              <Button
-                variant={plan.popular ? "hero" : "outline"}
-                className="w-full"
-                size="lg"
-              >
-                {plan.cta}
-              </Button>
+              <Link to={plan.href}>
+                <Button
+                  variant={plan.popular ? "hero" : "outline"}
+                  className="w-full"
+                  size="lg"
+                >
+                  {plan.cta}
+                </Button>
+              </Link>
             </div>
           ))}
         </div>
