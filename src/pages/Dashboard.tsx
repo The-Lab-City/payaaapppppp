@@ -15,8 +15,10 @@ import {
   Shield,
   User,
   BarChart3,
-  Wallet
+  Wallet,
+  Send
 } from 'lucide-react';
+import NotificationsDropdown from '@/components/NotificationsDropdown';
 
 export default function Dashboard() {
   const { user, profile, isAdmin, loading, signOut } = useAuth();
@@ -97,15 +99,14 @@ export default function Dashboard() {
                 </Button>
               </Link>
             )}
+            <NotificationsDropdown />
             <Link to="/settings">
               <Button variant="ghost" size="sm" className="gap-2">
                 <Settings className="w-4 h-4" />
-                Settings
               </Button>
             </Link>
             <Button variant="ghost" size="sm" className="gap-2" onClick={signOut}>
               <LogOut className="w-4 h-4" />
-              Sign out
             </Button>
           </div>
         </div>
@@ -192,24 +193,30 @@ export default function Dashboard() {
               <CardDescription>Common tasks</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start gap-3" variant="secondary">
-                <DollarSign className="w-4 h-4" />
-                Send Payment
-              </Button>
-              <Button className="w-full justify-start gap-3" variant="secondary">
-                <CreditCard className="w-4 h-4" />
-                Request Payment
-              </Button>
+              <Link to="/payments">
+                <Button className="w-full justify-start gap-3" variant="secondary">
+                  <Send className="w-4 h-4" />
+                  Send Payment
+                </Button>
+              </Link>
+              <Link to="/payments">
+                <Button className="w-full justify-start gap-3" variant="secondary">
+                  <CreditCard className="w-4 h-4" />
+                  Request Payment
+                </Button>
+              </Link>
               <Link to="/profile">
                 <Button className="w-full justify-start gap-3" variant="secondary">
                   <User className="w-4 h-4" />
                   Update Profile
                 </Button>
               </Link>
-              <Button className="w-full justify-start gap-3" variant="secondary">
-                <TrendingUp className="w-4 h-4" />
-                View Analytics
-              </Button>
+              <Link to="/analytics">
+                <Button className="w-full justify-start gap-3" variant="secondary">
+                  <TrendingUp className="w-4 h-4" />
+                  View Analytics
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
