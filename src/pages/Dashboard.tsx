@@ -97,10 +97,12 @@ export default function Dashboard() {
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="sm" className="gap-2">
-              <Settings className="w-4 h-4" />
-              Settings
-            </Button>
+            <Link to="/settings">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" className="gap-2" onClick={signOut}>
               <LogOut className="w-4 h-4" />
               Sign out
