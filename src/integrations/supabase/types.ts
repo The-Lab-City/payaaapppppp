@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          account_type: string
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          related_transaction_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          account_type?: string
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          related_transaction_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          related_transaction_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_related_transaction_id_fkey"
+            columns: ["related_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -45,6 +89,54 @@ export type Database = {
           id_number?: string | null
           name?: string | null
           phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          account_type: string
+          amount: number
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          payment_method: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type?: string
+          amount: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          payment_method?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          amount?: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          payment_method?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          status?: string
+          type?: string
           updated_at?: string
           user_id?: string
         }
