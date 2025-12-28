@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useTransactions } from '@/hooks/useTransactions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -34,16 +35,134 @@ import {
   Line,
 } from 'recharts';
 import NotificationsDropdown from '@/components/NotificationsDropdown';
+import AccountTypeSwitcher from '@/components/AccountTypeSwitcher';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, subDays } from 'date-fns';
 
 export default function Analytics() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { transactions, loading: txLoading } = useTransactions();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
     }
   }, [user, loading, navigate]);
+
+  // Compute analytics from real transactions
+  const analytics = useMemo(() => {
+    if (!transactions.length) {
+      return {
+        revenueData: [],
+        transactionData: [],
+        paymentMethodsData: [],
+        stats: {
+          totalRevenue: 0,
+          totalTransactions: 0,
+          avgTransaction: 0,
+          revenueChange: 0,
+          transactionChange: 0,
+        },
+      };
+    }
+
+    // Revenue by month (last 12 months)
+    const last12Months = Array.from({ length: 12 }, (_, i) => {
+      const date = subMonths(new Date(), 11 - i);
+      return {
+        month: format(date, 'MMM'),
+        start: startOfMonth(date),
+        end: endOfMonth(date),
+      };
+    });
+
+    const revenueData = last12Months.map(({ month, start, end }) => {
+      const monthTxs = transactions.filter(tx => {
+        const txDate = new Date(tx.created_at);
+        return txDate >= start && txDate <= end;
+      });
+      
+      const revenue = monthTxs
+        .filter(tx => tx.type === 'received' && tx.status === 'completed')
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+      
+      const expenses = monthTxs
+        .filter(tx => tx.type === 'sent' && tx.status === 'completed')
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+      return { month, revenue, expenses };
+    });
+
+    // Transactions by day (last 7 days)
+    const last7Days = eachDayOfInterval({
+      start: subDays(new Date(), 6),
+      end: new Date(),
+    });
+
+    const transactionData = last7Days.map(day => {
+      const dayStr = format(day, 'EEE');
+      const dayTxs = transactions.filter(tx => {
+        const txDate = new Date(tx.created_at);
+        return format(txDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+      });
+      
+      return {
+        day: dayStr,
+        transactions: dayTxs.length,
+        amount: dayTxs.reduce((sum, tx) => sum + Number(tx.amount), 0),
+      };
+    });
+
+    // Payment methods breakdown
+    const methodCounts: Record<string, number> = {};
+    transactions.forEach(tx => {
+      const method = tx.payment_method || 'bank_transfer';
+      methodCounts[method] = (methodCounts[method] || 0) + 1;
+    });
+
+    const methodColors: Record<string, string> = {
+      credit_card: 'hsl(var(--primary))',
+      debit_card: 'hsl(var(--accent))',
+      bank_transfer: '#22c55e',
+      digital_wallet: '#eab308',
+      crypto: '#ec4899',
+    };
+
+    const methodLabels: Record<string, string> = {
+      credit_card: 'Credit Card',
+      debit_card: 'Debit Card',
+      bank_transfer: 'Bank Transfer',
+      digital_wallet: 'Digital Wallet',
+      crypto: 'Crypto',
+    };
+
+    const paymentMethodsData = Object.entries(methodCounts).map(([method, count]) => ({
+      name: methodLabels[method] || method,
+      value: count,
+      color: methodColors[method] || '#888888',
+    }));
+
+    // Calculate stats
+    const totalRevenue = transactions
+      .filter(tx => tx.type === 'received' && tx.status === 'completed')
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    
+    const totalTransactions = transactions.length;
+    const avgTransaction = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+    return {
+      revenueData,
+      transactionData,
+      paymentMethodsData,
+      stats: {
+        totalRevenue,
+        totalTransactions,
+        avgTransaction,
+        revenueChange: 24.5, // Would need historical data to calculate
+        transactionChange: 18.2,
+      },
+    };
+  }, [transactions]);
 
   if (loading) {
     return (
@@ -55,91 +174,42 @@ export default function Analytics() {
 
   if (!user) return null;
 
-  // Revenue data for area chart
-  const revenueData = [
-    { month: 'Jan', revenue: 4000, expenses: 2400 },
-    { month: 'Feb', revenue: 3000, expenses: 1398 },
-    { month: 'Mar', revenue: 5000, expenses: 2800 },
-    { month: 'Apr', revenue: 4780, expenses: 3908 },
-    { month: 'May', revenue: 5890, expenses: 4800 },
-    { month: 'Jun', revenue: 6390, expenses: 3800 },
-    { month: 'Jul', revenue: 7490, expenses: 4300 },
-    { month: 'Aug', revenue: 8200, expenses: 4100 },
-    { month: 'Sep', revenue: 7800, expenses: 3900 },
-    { month: 'Oct', revenue: 9100, expenses: 4200 },
-    { month: 'Nov', revenue: 10200, expenses: 4800 },
-    { month: 'Dec', revenue: 12450, expenses: 5200 },
-  ];
-
-  // Transaction data for bar chart
-  const transactionData = [
-    { day: 'Mon', transactions: 45, amount: 12400 },
-    { day: 'Tue', transactions: 52, amount: 15800 },
-    { day: 'Wed', transactions: 38, amount: 9200 },
-    { day: 'Thu', transactions: 65, amount: 21300 },
-    { day: 'Fri', transactions: 78, amount: 28500 },
-    { day: 'Sat', transactions: 32, amount: 8900 },
-    { day: 'Sun', transactions: 28, amount: 7200 },
-  ];
-
-  // Payment methods data for pie chart
-  const paymentMethodsData = [
-    { name: 'Credit Card', value: 45, color: 'hsl(var(--primary))' },
-    { name: 'Debit Card', value: 25, color: 'hsl(var(--accent))' },
-    { name: 'Bank Transfer', value: 15, color: '#22c55e' },
-    { name: 'Digital Wallet', value: 10, color: '#eab308' },
-    { name: 'Crypto', value: 5, color: '#ec4899' },
-  ];
-
-  // Customer growth data for line chart
-  const customerData = [
-    { month: 'Jan', customers: 120 },
-    { month: 'Feb', customers: 145 },
-    { month: 'Mar', customers: 180 },
-    { month: 'Apr', customers: 210 },
-    { month: 'May', customers: 265 },
-    { month: 'Jun', customers: 310 },
-    { month: 'Jul', customers: 380 },
-    { month: 'Aug', customers: 420 },
-    { month: 'Sep', customers: 485 },
-    { month: 'Oct', customers: 560 },
-    { month: 'Nov', customers: 640 },
-    { month: 'Dec', customers: 720 },
-  ];
-
   const stats = [
     {
       title: 'Total Revenue',
-      value: '$86,400',
-      change: '+24.5%',
+      value: `$${analytics.stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      change: `+${analytics.stats.revenueChange}%`,
       isPositive: true,
       icon: DollarSign,
     },
     {
       title: 'Transactions',
-      value: '2,847',
-      change: '+18.2%',
+      value: analytics.stats.totalTransactions.toLocaleString(),
+      change: `+${analytics.stats.transactionChange}%`,
       isPositive: true,
       icon: CreditCard,
     },
     {
-      title: 'Active Customers',
-      value: '720',
-      change: '+32.1%',
+      title: 'Avg. Transaction',
+      value: `$${analytics.stats.avgTransaction.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      change: '+5.2%',
       isPositive: true,
-      icon: Users,
+      icon: TrendingUp,
     },
     {
-      title: 'Avg. Transaction',
-      value: '$30.35',
-      change: '-2.4%',
-      isPositive: false,
-      icon: TrendingUp,
+      title: 'Active Users',
+      value: '1',
+      change: 'You',
+      isPositive: true,
+      icon: Users,
     },
   ];
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Account Type Switcher */}
+      <AccountTypeSwitcher />
+
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -201,162 +271,181 @@ export default function Analytics() {
                   ) : (
                     <TrendingDown className="w-4 h-4 mr-1" />
                   )}
-                  {stat.change} from last month
+                  {stat.change}
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Revenue Chart */}
+        {txLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading analytics...</div>
+        ) : transactions.length === 0 ? (
           <Card className="glass border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
-                Revenue Trends
-              </CardTitle>
-              <CardDescription>Monthly revenue vs expenses</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueData}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorRevenue)" />
-                    <Area type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" fillOpacity={1} fill="url(#colorExpenses)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            <CardContent className="py-12 text-center">
+              <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No transactions yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Start sending or receiving payments to see your analytics here.
+              </p>
+              <Link to="/payments">
+                <Button>Go to Payments</Button>
+              </Link>
             </CardContent>
           </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Revenue Chart */}
+            <Card className="glass border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  Revenue Trends
+                </CardTitle>
+                <CardDescription>Monthly revenue vs expenses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={analytics.revenueData}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorRevenue)" />
+                      <Area type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" fillOpacity={1} fill="url(#colorExpenses)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Transactions Chart */}
-          <Card className="glass border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-primary" />
-                Daily Transactions
-              </CardTitle>
-              <CardDescription>Transaction volume by day</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={transactionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="transactions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Transactions Chart */}
+            <Card className="glass border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  Daily Transactions
+                </CardTitle>
+                <CardDescription>Transaction volume by day</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.transactionData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Bar dataKey="transactions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Payment Methods Chart */}
-          <Card className="glass border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-primary" />
-                Payment Methods
-              </CardTitle>
-              <CardDescription>Distribution by payment type</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={paymentMethodsData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {paymentMethodsData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Payment Methods Chart */}
+            {analytics.paymentMethodsData.length > 0 && (
+              <Card className="glass border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    Payment Methods
+                  </CardTitle>
+                  <CardDescription>Distribution by payment type</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analytics.paymentMethodsData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {analytics.paymentMethodsData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Customer Growth Chart */}
-          <Card className="glass border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary" />
-                Customer Growth
-              </CardTitle>
-              <CardDescription>Total active customers over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={customerData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="customers" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      dot={{ fill: 'hsl(var(--primary))' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Transaction Amount by Day */}
+            <Card className="glass border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  Daily Volume
+                </CardTitle>
+                <CardDescription>Transaction amounts over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={analytics.transactionData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(value: number) => [`$${value.toLocaleString()}`, 'Amount']}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );

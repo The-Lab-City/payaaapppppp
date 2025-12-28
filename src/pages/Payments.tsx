@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useTransactions, Transaction } from '@/hooks/useTransactions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,21 +39,14 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import NotificationsDropdown from '@/components/NotificationsDropdown';
-
-interface Transaction {
-  id: string;
-  type: 'sent' | 'received' | 'pending';
-  name: string;
-  email: string;
-  amount: number;
-  date: string;
-  status: 'completed' | 'pending' | 'failed';
-}
+import AccountTypeSwitcher from '@/components/AccountTypeSwitcher';
+import { format } from 'date-fns';
 
 export default function Payments() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { transactions, loading: txLoading, createTransaction, getStats } = useTransactions();
   
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
@@ -64,17 +58,7 @@ export default function Payments() {
   const [requestNote, setRequestNote] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', type: 'received', name: 'Alex Johnson', email: 'alex@example.com', amount: 250.00, date: '2024-12-27', status: 'completed' },
-    { id: '2', type: 'sent', name: 'Sarah Williams', email: 'sarah@example.com', amount: 1200.00, date: '2024-12-26', status: 'completed' },
-    { id: '3', type: 'received', name: 'Michael Brown', email: 'michael@example.com', amount: 89.99, date: '2024-12-25', status: 'completed' },
-    { id: '4', type: 'pending', name: 'Emily Davis', email: 'emily@example.com', amount: 500.00, date: '2024-12-24', status: 'pending' },
-    { id: '5', type: 'sent', name: 'James Wilson', email: 'james@example.com', amount: 75.00, date: '2024-12-23', status: 'completed' },
-    { id: '6', type: 'received', name: 'Lisa Anderson', email: 'lisa@example.com', amount: 320.00, date: '2024-12-22', status: 'completed' },
-    { id: '7', type: 'sent', name: 'Robert Taylor', email: 'robert@example.com', amount: 150.00, date: '2024-12-21', status: 'failed' },
-    { id: '8', type: 'received', name: 'Jennifer Martinez', email: 'jennifer@example.com', amount: 450.00, date: '2024-12-20', status: 'completed' },
-  ]);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -92,7 +76,7 @@ export default function Payments() {
 
   if (!user) return null;
 
-  const handleSendPayment = () => {
+  const handleSendPayment = async () => {
     if (!sendAmount || !sendEmail) {
       toast({
         variant: 'destructive',
@@ -102,28 +86,23 @@ export default function Payments() {
       return;
     }
 
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type: 'sent',
-      name: sendEmail.split('@')[0],
-      email: sendEmail,
-      amount: parseFloat(sendAmount),
-      date: new Date().toISOString().split('T')[0],
-      status: 'completed',
-    };
+    setIsSending(true);
+    const result = await createTransaction('sent', parseFloat(sendAmount), sendEmail, sendNote);
+    setIsSending(false);
 
-    setTransactions(prev => [newTransaction, ...prev]);
-    toast({
-      title: 'Payment sent',
-      description: `$${sendAmount} sent to ${sendEmail}`,
-    });
-    setSendAmount('');
-    setSendEmail('');
-    setSendNote('');
-    setSendDialogOpen(false);
+    if (result) {
+      toast({
+        title: 'Payment sent',
+        description: `$${sendAmount} sent to ${sendEmail}`,
+      });
+      setSendAmount('');
+      setSendEmail('');
+      setSendNote('');
+      setSendDialogOpen(false);
+    }
   };
 
-  const handleRequestPayment = () => {
+  const handleRequestPayment = async () => {
     if (!requestAmount || !requestEmail) {
       toast({
         variant: 'destructive',
@@ -133,40 +112,45 @@ export default function Payments() {
       return;
     }
 
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type: 'pending',
-      name: requestEmail.split('@')[0],
-      email: requestEmail,
-      amount: parseFloat(requestAmount),
-      date: new Date().toISOString().split('T')[0],
-      status: 'pending',
-    };
+    setIsSending(true);
+    const result = await createTransaction('requested', parseFloat(requestAmount), requestEmail, requestNote);
+    setIsSending(false);
 
-    setTransactions(prev => [newTransaction, ...prev]);
-    toast({
-      title: 'Payment requested',
-      description: `Requested $${requestAmount} from ${requestEmail}`,
-    });
-    setRequestAmount('');
-    setRequestEmail('');
-    setRequestNote('');
-    setRequestDialogOpen(false);
+    if (result) {
+      toast({
+        title: 'Payment requested',
+        description: `Requested $${requestAmount} from ${requestEmail}`,
+      });
+      setRequestAmount('');
+      setRequestEmail('');
+      setRequestNote('');
+      setRequestDialogOpen(false);
+    }
   };
 
   const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = tx.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          tx.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = 
+      (tx.recipient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (tx.recipient_email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesFilter = filterStatus === 'all' || tx.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const totalReceived = transactions.filter(t => t.type === 'received' && t.status === 'completed').reduce((sum, t) => sum + t.amount, 0);
-  const totalSent = transactions.filter(t => t.type === 'sent' && t.status === 'completed').reduce((sum, t) => sum + t.amount, 0);
-  const pendingAmount = transactions.filter(t => t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
+  const { totalReceived, totalSent, pendingAmount } = getStats();
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy');
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Account Type Switcher */}
+      <AccountTypeSwitcher />
+      
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -227,7 +211,7 @@ export default function Payments() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="request-email">Recipient Email</Label>
+                    <Label htmlFor="request-email">From Email</Label>
                     <Input
                       id="request-email"
                       type="email"
@@ -258,7 +242,9 @@ export default function Payments() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setRequestDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleRequestPayment}>Request Payment</Button>
+                  <Button onClick={handleRequestPayment} disabled={isSending}>
+                    {isSending ? 'Requesting...' : 'Request Payment'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -310,7 +296,9 @@ export default function Payments() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSendPayment}>Send Payment</Button>
+                  <Button onClick={handleSendPayment} disabled={isSending}>
+                    {isSending ? 'Sending...' : 'Send Payment'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -385,55 +373,61 @@ export default function Payments() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {filteredTransactions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No transactions found
-                </div>
-              ) : (
-                filteredTransactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        tx.type === 'received' ? 'bg-green-500/20' :
-                        tx.type === 'pending' ? 'bg-yellow-500/20' : 'bg-primary/20'
-                      }`}>
-                        {tx.type === 'received' ? (
-                          <ArrowDownRight className="w-5 h-5 text-green-500" />
-                        ) : tx.type === 'pending' ? (
-                          <CreditCard className="w-5 h-5 text-yellow-500" />
-                        ) : (
-                          <ArrowUpRight className="w-5 h-5 text-primary" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{tx.name}</p>
-                        <p className="text-sm text-muted-foreground">{tx.email}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium ${
-                        tx.type === 'received' ? 'text-green-500' : 'text-foreground'
-                      }`}>
-                        {tx.type === 'received' ? '+' : '-'}${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </p>
-                      <div className="flex items-center gap-2 justify-end">
-                        <p className="text-sm text-muted-foreground">{tx.date}</p>
-                        <Badge variant={
-                          tx.status === 'completed' ? 'default' :
-                          tx.status === 'pending' ? 'secondary' : 'destructive'
-                        } className="text-xs">
-                          {tx.status}
-                        </Badge>
-                      </div>
-                    </div>
+            {txLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading transactions...
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTransactions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No transactions found
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  filteredTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          tx.type === 'received' ? 'bg-green-500/20' :
+                          tx.type === 'requested' ? 'bg-yellow-500/20' : 'bg-primary/20'
+                        }`}>
+                          {tx.type === 'received' ? (
+                            <ArrowDownRight className="w-5 h-5 text-green-500" />
+                          ) : tx.type === 'requested' ? (
+                            <CreditCard className="w-5 h-5 text-yellow-500" />
+                          ) : (
+                            <ArrowUpRight className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{tx.recipient_name || 'Unknown'}</p>
+                          <p className="text-sm text-muted-foreground">{tx.recipient_email}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-medium ${
+                          tx.type === 'received' ? 'text-green-500' : 'text-foreground'
+                        }`}>
+                          {tx.type === 'received' ? '+' : '-'}${Number(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </p>
+                        <div className="flex items-center gap-2 justify-end">
+                          <span className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</span>
+                          <Badge variant={
+                            tx.status === 'completed' ? 'default' :
+                            tx.status === 'pending' ? 'secondary' : 'destructive'
+                          } className="text-xs">
+                            {tx.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

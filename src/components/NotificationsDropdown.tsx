@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Bell, Check, CreditCard, AlertTriangle, TrendingUp, User, X } from 'lucide-react';
+import { Bell, Check, CreditCard, AlertTriangle, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,67 +10,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-interface Notification {
-  id: string;
-  type: 'payment' | 'alert' | 'info' | 'success';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
+import { useNotifications } from '@/hooks/useNotifications';
+import { formatDistanceToNow } from 'date-fns';
 
 const NotificationsDropdown = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'payment',
-      title: 'Payment Received',
-      message: 'You received $250.00 from Alex Johnson',
-      time: '2 min ago',
-      read: false,
-    },
-    {
-      id: '2',
-      type: 'alert',
-      title: 'Unusual Activity',
-      message: 'We detected a login from a new device',
-      time: '1 hour ago',
-      read: false,
-    },
-    {
-      id: '3',
-      type: 'success',
-      title: 'Subscription Renewed',
-      message: 'Your Pro plan has been renewed for another month',
-      time: '3 hours ago',
-      read: false,
-    },
-    {
-      id: '4',
-      type: 'info',
-      title: 'New Feature',
-      message: 'Check out our new analytics dashboard',
-      time: '1 day ago',
-      read: true,
-    },
-    {
-      id: '5',
-      type: 'payment',
-      title: 'Payment Sent',
-      message: 'You sent $1,200.00 to Sarah Williams',
-      time: '2 days ago',
-      read: true,
-    },
-  ]);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    removeNotification 
+  } = useNotifications();
 
   const getIcon = (type: string) => {
     switch (type) {
       case 'payment':
         return <CreditCard className="w-4 h-4" />;
       case 'alert':
+      case 'warning':
         return <AlertTriangle className="w-4 h-4" />;
       case 'success':
         return <Check className="w-4 h-4" />;
@@ -87,6 +43,7 @@ const NotificationsDropdown = () => {
       case 'payment':
         return 'bg-primary/20 text-primary';
       case 'alert':
+      case 'warning':
         return 'bg-destructive/20 text-destructive';
       case 'success':
         return 'bg-green-500/20 text-green-500';
@@ -97,18 +54,12 @@ const NotificationsDropdown = () => {
     }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const formatTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return 'Just now';
+    }
   };
 
   return (
@@ -181,7 +132,7 @@ const NotificationsDropdown = () => {
                       {notification.message}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {notification.time}
+                      {formatTime(notification.created_at)}
                     </p>
                   </div>
                   {!notification.read && (
